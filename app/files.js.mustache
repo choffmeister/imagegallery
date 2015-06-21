@@ -1,0 +1,14 @@
+module.exports = [
+{{#photos}}
+  {
+    src: 'photos/{{{file.relative}}}',
+    w: {{dimensions.width}},
+    h: {{dimensions.height}},
+    thumb: {
+      src: 'thumbnails/{{{file.relative}}}',
+      w: 240,
+      h: 160
+    }
+  },
+{{/photos}}
+];

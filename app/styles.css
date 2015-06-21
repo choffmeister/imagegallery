@@ -1,0 +1,22 @@
+body {
+  background-color: rgb(27, 27, 27);
+}
+
+.thumbnails {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-around;
+  align-items: center;
+}
+
+.thumbnail {
+  background-color: white;
+
+  padding: 5px;
+  margin: 5px;
+
+  border-radius: 3px;
+
+  max-width: 240px;
+  max-height: 160px;
+}
