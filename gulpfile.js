@@ -1,22 +1,20 @@
+'use strict';
+
 var argv = require('yargs').argv,
     browserify = require('browserify'),
     buffer = require('vinyl-buffer'),
     connect = require('connect'),
-    easyimage = require('easyimage'),
-    fs = require('fs'),
+    extend = require('extend'),
     gif = require('gulp-if'),
     gulp = require('gulp'),
     gutil = require('gulp-util'),
-    imageSize = require('image-size'),
     minifyhtml = require('gulp-minify-html'),
-    mustache = require('mustache'),
-    path = require('path'),
     plumber = require('gulp-plumber'),
     size = require('gulp-size'),
     source = require('vinyl-source-stream'),
     through = require('through2'),
     uglify = require('gulp-uglify'),
-    url = require('url');
+    utils = require('./utils');
 
 var config = {
   dev: argv.dev,
@@ -28,7 +26,13 @@ var globs = {
   photos: './photos/**/*.jpg',
   html: './index.html',
   css: './app/**/*.css',
-  js: './app/**/*.js'
+  js: './app/**/*.js',
+  photoswipe: [
+    './node_modules/photoswipe/dist/photoswipe.css',
+    './node_modules/photoswipe/dist/photoswipe.min.js',
+    './node_modules/photoswipe/dist/photoswipe-ui-default.min.js',
+    './node_modules/photoswipe/dist/default-skin/*.*'
+  ]
 };
 
 var errorHandler = function () {
@@ -44,25 +48,20 @@ var errorHandler = function () {
   });
 };
 
-gulp.task('photos-thumbnails', function (cb) {
-  var photos = [];
+gulp.task('photos-originals', function () {
+  return gulp.src(globs.photos)
+    .pipe(gulp.dest('./build/photos'));
+});
 
+gulp.task('photos-thumbnails', function () {
   var processor = through.obj(
     function (file, _, cb) {
-      var opts = {
-        src: file.path,
-        dst: './build/thumbnails/' + file.relative,
-        width: 240,
-        height: 160
-      };
-
-      easyimage.resize(opts)
-        .then(function () {
-          cb();
-        })
-        .catch(function (err) {
-          cn(err);
-        });
+      gutil.log('Creating thumbnail of ' + file.path);
+      utils.thumbnailAsync(file.path, './build/thumbnails/' + file.relative, 240, 160).then(function () {
+        cb();
+      }).catch(function (err) {
+        cb(err);
+      });
     }
   );
 
@@ -70,45 +69,47 @@ gulp.task('photos-thumbnails', function (cb) {
     .pipe(gif(config.dist, processor));
 });
 
-
-gulp.task('photos-list', function (cb) {
+gulp.task('photos-list', ['photos-originals', 'photos-thumbnails'], function () {
   var photos = [];
 
   var processor = through.obj(
     function (file, _, cb) {
-      imageSize(file.path, function (err, dimensions) {
-        if (!err) {
-          photos.push({
-            file: file,
-            dimensions: dimensions
-          });
-          cb();
-        } else {
-          cb(err);
-        }
+      var originalUrl = 'photos/' + file.relative;
+      var thumbnailUrl = 'thumbnails/' + file.relative;
+
+      utils.imageSizeAsync('./build/' + originalUrl).then(function (originalDimensions) {
+        return utils.imageSizeAsync('./build/' + thumbnailUrl).then(function (thumbailDimensions) {
+          return {
+            original: extend(originalDimensions, {
+              url: originalUrl
+            }),
+            thumbnail: extend(thumbailDimensions, {
+              url: thumbnailUrl
+            })
+          };
+        });
+      }).then(function (photo) {
+        photos.push({
+          file: file,
+          original: photo.original,
+          thumbnail: photo.thumbnail
+        });
+        cb();
+      }).catch(function (err) {
+        cb(err);
       });
     },
     function (cb) {
-      fs.readFile('./app/files.js.mustache', 'utf-8', function (err, template) {
-        if (!err) {
-          var rendered = mustache.render(template, {photos: photos});
-          fs.writeFile('./app/files.js', rendered, function (err2) {
-            cb(err2);
-          })
-        } else {
-          cb(err);
-        }
+      utils.renderAsync('./app/files.js.mustache', './app/files.js', {photos: photos}).then(function () {
+        cb();
+      }).catch(function (err) {
+        cb(err);
       });
     }
   );
 
   return gulp.src(globs.photos, {read: false})
     .pipe(processor);
-});
-
-gulp.task('photos-copy', function () {
-  return gulp.src(globs.photos, {read: config.dist})
-    .pipe(gulp.dest('./build/photos'));
 });
 
 gulp.task('html', function () {
@@ -142,13 +143,7 @@ gulp.task('js', ['photos-list'], function () {
 });
 
 gulp.task('vendor-photoswipe', function () {
-  var globs = [
-    './node_modules/photoswipe/dist/photoswipe.css',
-    './node_modules/photoswipe/dist/photoswipe.min.js',
-    './node_modules/photoswipe/dist/photoswipe-ui-default.min.js',
-    './node_modules/photoswipe/dist/default-skin/*.*'
-  ];
-  return gulp.src(globs)
+  return gulp.src(globs.photoswipe)
     .pipe(gulp.dest('./build/app/photoswipe'));
 });
 
@@ -163,8 +158,7 @@ gulp.task('connect', ['build'], function (/*next*/) {
     });
 });
 
-
-gulp.task('photos', ['photos-list', 'photos-copy', 'photos-thumbnails']);
+gulp.task('photos', ['photos-list', 'photos-originals', 'photos-thumbnails']);
 gulp.task('vendor', ['vendor-photoswipe']);
 
 gulp.task('build', ['photos', 'html', 'css', 'js', 'vendor']);

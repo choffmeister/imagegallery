@@ -1,13 +1,13 @@
 module.exports = [
 {{#photos}}
   {
-    src: 'photos/{{{file.relative}}}',
-    w: {{dimensions.width}},
-    h: {{dimensions.height}},
-    thumb: {
-      src: 'thumbnails/{{{file.relative}}}',
-      w: 240,
-      h: 160
+    src: '{{{original.url}}}',
+    w: {{original.width}},
+    h: {{original.height}},
+    thumbnail: {
+      src: '{{{thumbnail.url}}}',
+      w: {{thumbnail.width}},
+      h: {{thumbnail.height}}
     }
   },
 {{/photos}}

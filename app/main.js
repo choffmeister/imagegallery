@@ -1,5 +1,11 @@
-var photos = require('./files'),
-    thumbnailsElement = document.querySelector('.thumbnails'),
+/*eslint-env browser*/
+/*eslint camelcase: 0*/
+/*global PhotoSwipe, PhotoSwipeUI_Default*/
+'use strict';
+
+var photos = require('./files');
+
+var thumbnailsElement = document.querySelector('.thumbnails'),
     pswpElement = document.querySelector('.pswp');
 
 photos.forEach(function (photo, index) {
@@ -14,7 +20,9 @@ photos.forEach(function (photo, index) {
 
   var image = document.createElement('img');
   image.className = 'thumbnail';
-  image.src = photo.thumb.src;
+  image.src = photo.thumbnail.src;
+  image.width = photo.thumbnail.w;
+  image.height = photo.thumbnail.h;
 
   anchor.appendChild(image);
   thumbnailsElement.appendChild(anchor);
